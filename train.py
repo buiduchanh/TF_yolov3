@@ -22,6 +22,9 @@ from core.dataset import Dataset
 from core.yolov3 import YOLOV3
 from core.config import cfg
 
+import os
+os.environ["CUDA_DEVICE_ORDER"]="PCI_BUS_ID"   # see issue #152
+os.environ["CUDA_VISIBLE_DEVICES"]="2"
 
 class YoloTrain(object):
     def __init__(self):
@@ -42,7 +45,8 @@ class YoloTrain(object):
         self.testset             = Dataset('test')
         self.steps_per_period    = len(self.trainset)
         self.sess                = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
-
+        self.mobile              = cfg.YOLO.BACKBONE_MOBILE
+        
         with tf.name_scope('define_input'):
             self.input_data   = tf.placeholder(dtype=tf.float32, name='input_data')
             self.label_sbbox  = tf.placeholder(dtype=tf.float32, name='label_sbbox')
@@ -56,9 +60,14 @@ class YoloTrain(object):
         with tf.name_scope("define_loss"):
             self.model = YOLOV3(self.input_data, self.trainable)
             self.net_var = tf.global_variables()
-            self.giou_loss, self.conf_loss, self.prob_loss = self.model.compute_loss(
-                                                    self.label_sbbox,  self.label_mbbox,  self.label_lbbox,
-                                                    self.true_sbboxes, self.true_mbboxes, self.true_lbboxes)
+            if self.mobile:
+                self.giou_loss, self.conf_loss, self.prob_loss = self.model.compute_loss(
+                                                        self.label_sbbox,  self.label_mbbox,  self.label_lbbox,
+                                                        self.true_sbboxes, self.true_mbboxes, self.true_lbboxes)
+            else:
+                self.giou_loss, self.conf_loss, self.prob_loss = self.model.compute_loss_mobile(
+                                                        self.label_sbbox,  self.label_mbbox,  self.label_lbbox,
+                                                        self.true_sbboxes, self.true_mbboxes, self.true_lbboxes)
             self.loss = self.giou_loss + self.conf_loss + self.prob_loss
 
         with tf.name_scope('learn_rate'):

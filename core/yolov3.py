@@ -17,7 +17,7 @@ import core.utils as utils
 import core.common as common
 import core.backbone as backbone
 from core.config import cfg
-from MobilenetV2 import MobilenetV2
+# from core.MobilenetV2 import MobilenetV2
 
 class YOLOV3(object):
     """Implement tensoflow yolov3 here"""
@@ -34,7 +34,24 @@ class YOLOV3(object):
         
         self.mobile           = cfg.YOLO.BACKBONE_MOBILE
         self.gt_per_grid      = cfg.YOLO.GT_PER_GRID
-        if not self.mobile:
+        
+        if self.mobile:
+            try:
+                self.conv_lbbox, self.conv_mbbox, self.conv_sbbox = self.__build_nework_mobile(input_data)
+            except:
+                raise NotImplementedError("Can not build up yolov3 network!")
+
+            with tf.variable_scope('pred_sbbox'):
+                self.pred_sbbox = self.decode_mobile(conv_output=self.conv_sbbox, num_classes=self.num_class, stride=self.strides[0])
+            
+            with tf.variable_scope('pred_mbbox'):
+                self.pred_mbbox = self.decode_mobile(conv_output=self.conv_mbbox, num_classes=self.num_class, stride=self.strides[1])
+    
+            with tf.variable_scope('pred_lbbox'):
+                self.pred_lbbox = self.decode_mobile(conv_output=self.conv_lbbox, num_classes=self.num_class, stride=self.strides[2])
+
+        else:
+            
             try:
                 self.conv_lbbox, self.conv_mbbox, self.conv_sbbox = self.__build_nework(input_data)
             except:
@@ -48,21 +65,6 @@ class YOLOV3(object):
 
             with tf.variable_scope('pred_lbbox'):
                 self.pred_lbbox = self.decode(self.conv_lbbox, self.anchors[2], self.strides[2])
-        else:
-            
-            try:
-                self.conv_lbbox, self.conv_mbbox, self.conv_sbbox = self.__build_nework(input_data)
-            except:
-                raise NotImplementedError("Can not build up yolov3 network!")
-
-            with tf.variable_scope('pred_sbbox'):
-                self.pred_sbbox = self.decode_mobile(conv_output=self.conv_sbbox, num_classes=self.num_class, stride=self.strides[0])
-            
-            with tf.variable_scope('pred_mbbox'):
-                self.pred_mbbox = self.decode_mobile(conv_output=self.pred_mbbox, num_classes=self.num_class, stride=self.strides[1])
-    
-            with tf.variable_scope('pred_lbbox'):
-                self.pred_lbbox = self.decode_mobile(conv_output=self.pred_lbbox, num_classes=self.num_class, stride=self.strides[2])
 
     def __build_nework_mobile(self, input_data):
         """
@@ -77,7 +79,7 @@ class YOLOV3(object):
         pred_lbbox的shape为(batch_size, input_size / 32, input_size / 32, gt_per_grid, 5 + num_classes)
         pred_?是YOLO预测bbox的信息(x, y, w, h, conf, prob)，(x, y, w, h)的大小是相对于input_size的
         """
-        feature_map_s, feature_map_m, feature_map_l = MobilenetV2(input_data, self.trainable)
+        feature_map_s, feature_map_m, feature_map_l = backbone.MobilenetV2(input_data, self.trainable)
 
         conv = common.convolutional(name='conv0', input_data=feature_map_l, filters_shape=(1, 1, 1280, 512),
                                 trainable=self.trainable)
@@ -91,7 +93,7 @@ class YOLOV3(object):
         # ----------**********---------- Detection branch of large object ----------**********----------
         conv_lbbox = common.separable_conv(name='conv5', input_data=conv, input_c=512, output_c=1024,
                                     trainable=self.trainable)
-        conv_lbbox = common.convolutional(name='conv6', input_data=conv_lbbox,
+        conv_lbbox = common.convolutional(name='conv_lbbox', input_data=conv_lbbox,
                                     filters_shape=(1, 1, 1024, self.gt_per_grid * (self.num_class + 5)),
                                     trainable=self.trainable, downsample=False, activate=False, bn=False)
         # pred_lbbox = decode(name='pred_lbbox', conv_output=conv_lbbox,
@@ -115,7 +117,7 @@ class YOLOV3(object):
         # ----------**********---------- Detection branch of middle object ----------**********----------
         conv_mbbox = common.separable_conv(name='conv13', input_data=conv, input_c=256, output_c=512,
                                     trainable=self.trainable)
-        conv_mbbox = common.convolutional(name='conv14', input_data=conv_mbbox,
+        conv_mbbox = common.convolutional(name='conv_mbbox', input_data=conv_mbbox,
                                     filters_shape=(1, 1, 512, self.gt_per_grid * (self.num_class + 5)),
                                     trainable=self.trainable, downsample=False, activate=False, bn=False)
         # pred_mbbox = decode(name='pred_mbbox', conv_output=conv_mbbox,
@@ -141,7 +143,7 @@ class YOLOV3(object):
         # ----------**********---------- Detection branch of small object ----------**********----------
         conv_sbbox = common.separable_conv(name='conv21', input_data=conv, input_c=128, output_c=256,
                                     trainable=self.trainable)
-        conv_sbbox = common.convolutional(name='conv22', input_data=conv_sbbox,
+        conv_sbbox = common.convolutional(name='conv_sbbox', input_data=conv_sbbox,
                                     filters_shape=(1, 1, 256, self.gt_per_grid * (self.num_class + 5)),
                                     trainable=self.trainable, downsample=False, activate=False, bn=False)
         # pred_sbbox = decode(name='pred_sbbox', conv_output=conv_sbbox,
@@ -202,7 +204,7 @@ class YOLOV3(object):
         conv_shape = tf.shape(conv_output)
         batch_size = conv_shape[0]
         output_size = conv_shape[1]
-        gt_per_grid = conv_shape[3] / (5 + num_classes)
+        gt_per_grid = conv_shape[3] // (5 + num_classes)
 
         conv_output = tf.reshape(conv_output, (batch_size, output_size, output_size, gt_per_grid, 5 + num_classes))
         conv_raw_dx1dy1 = conv_output[:, :, :, :, 0:2]
@@ -420,8 +422,9 @@ class YOLOV3(object):
 
         label_coor = label[..., 0:4]
         respond_bbox = label[..., 4:5]
-        label_prob = label[..., 5:-1]
-        label_mixw = label[..., -1:]
+        label_prob = label[..., 5:]
+        # label_prob = label[..., 5:-1]
+        # label_mixw = label[..., -1:]
 
         # 计算GIOU损失
         GIOU = self.bbox_giou(pred_coor, label_coor)
@@ -429,7 +432,7 @@ class YOLOV3(object):
         input_size = tf.cast(input_size, tf.float32)
         bbox_wh = label_coor[..., 2:] - label_coor[..., :2]
         bbox_loss_scale = 2.0 - 1.0 * bbox_wh[..., 0:1] * bbox_wh[..., 1:2] / (input_size ** 2)
-        GIOU_loss = respond_bbox * bbox_loss_scale * (1.0 - GIOU)
+        giou_loss = respond_bbox * bbox_loss_scale * (1.0 - GIOU)
 
         # (2)计算confidence损失
         iou = self.bbox_iou(pred_coor[:, :, :, :, np.newaxis, :],
@@ -448,10 +451,13 @@ class YOLOV3(object):
 
         # (3)计算classes损失
         prob_loss = respond_bbox * tf.nn.sigmoid_cross_entropy_with_logits(labels=label_prob, logits=conv_raw_prob)
-        loss = tf.concat([GIOU_loss, conf_loss, prob_loss], axis=-1)
-        loss = loss * label_mixw
-        loss = tf.reduce_mean(tf.reduce_sum(loss, axis=[1, 2, 3, 4]))
-        return loss
+        # loss = tf.concat([GIOU_loss, conf_loss, prob_loss], axis=-1)
+        # loss = loss * label_mixw
+        # loss = tf.reduce_mean(tf.reduce_sum(loss, axis=[1, 2, 3, 4]))
+        giou_loss = tf.reduce_mean(tf.reduce_sum(giou_loss, axis=[1,2,3,4]))
+        conf_loss = tf.reduce_mean(tf.reduce_sum(conf_loss, axis=[1,2,3,4]))
+        prob_loss = tf.reduce_mean(tf.reduce_sum(prob_loss, axis=[1,2,3,4]))
+        return giou_loss, conf_loss, prob_loss
 
     def compute_loss_mobile(self, label_sbbox, label_mbbox, label_lbbox, true_sbbox, true_mbbox, true_lbbox):
 
