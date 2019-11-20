@@ -72,15 +72,15 @@ We will update this result asap
 
 ## TODO
 
-- [] Convert model to using in edge device
-- [] Adding channel prunning
+- Convert model to using in edge device
+- Adding channel prunning
 
 ## Reference
 
 [Stronger-Yolo](https://github.com/Stinky-Tofu/Stronger-yolo)  
 [focal-loss](https://arxiv.org/abs/1708.02002)  
-[kl-loss](https://github.com/yihui-he/KL-Loss)
-[YOLOv3目标检测有了TensorFlow实现，可用自己的数据来训练](https://mp.weixin.qq.com/s/cq7g1-4oFTftLbmKcpi_aQ)
-[Implementing YOLO v3 in Tensorflow (TF-Slim)](https://itnext.io/implementing-yolo-v3-in-tensorflow-tf-slim-c3c55ff59dbe)
+[kl-loss](https://github.com/yihui-he/KL-Loss)  
+[YOLOv3目标检测有了TensorFlow实现，可用自己的数据来训练](https://mp.weixin.qq.com/s/cq7g1-4oFTftLbmKcpi_aQ)  
+[Implementing YOLO v3 in Tensorflow (TF-Slim)](https://itnext.io/implementing-yolo-v3-in-tensorflow-tf-slim-c3c55ff59dbe)  
 [Understanding YOLO](https://hackernoon.com/understanding-yolo-f5a74bbc7967)
 
