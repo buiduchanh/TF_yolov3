@@ -1,42 +1,18 @@
 
-# 🆕 Are you looking for TensorFlow2.x-YOLOv3 ?
 
->If you hate the fucking tensorflow1.x very much, no worries! I have implemented **an new YOLOv3 repo with TF2.0**, and also made a chinese blog on how to implement YOLOv3 object detector from scratch. <br>
-[code](https://github.com/YunYang1994/TensorFlow2.0-Examples/tree/master/4-Object_Detection/YOLOV3) | [blog](https://github.com/YunYang1994/ai-notebooks/blob/master/YOLOv3.md)  | [issue](https://github.com/YunYang1994/tensorflow-yolov3/issues/39)
+## START
 
-## part 1. Quick start
-1. Clone this file
+### Clone this file
 ```bashrc
-$ git clone https://github.com/YunYang1994/tensorflow-yolov3.git
+$ git clone https://github.com/buiduchanh/TF_yolov3.git
 ```
-2.  You are supposed  to install some dependencies before getting out hands with these codes.
-```bashrc
-$ cd tensorflow-yolov3
-$ pip install -r ./docs/requirements.txt
-```
-3. Exporting loaded COCO weights as TF checkpoint(`yolov3_coco.ckpt`)【[BaiduCloud](https://pan.baidu.com/s/11mwiUy8KotjUVQXqkGGPFQ&shfl=sharepset)】
-```bashrc
-$ cd checkpoint
-$ wget https://github.com/YunYang1994/tensorflow-yolov3/releases/download/v1.0/yolov3_coco.tar.gz
-$ tar -xvf yolov3_coco.tar.gz
-$ cd ..
-$ python convert_weight.py
-$ python freeze_graph.py
-```
-4. Then you will get some `.pb` files in the root path.,  and run the demo script
-```bashrc
-$ python image_demo.py
-$ python video_demo.py # if use camera, set video_path = 0
-```
-<p align="center">
-    <img width="100%" src="https://user-images.githubusercontent.com/30433053/68088581-9255e700-fe9b-11e9-8672-2672ab398abe.jpg" style="max-width:100%;">
-    </a>
-</p>
 
-## part 2. Train your own dataset
+## Train your own dataset
+
+### 1. Prepare Dataset
 Two files are required as follows:
 
-- [`dataset.txt`](https://raw.githubusercontent.com/YunYang1994/tensorflow-yolov3/master/data/dataset/voc_train.txt): 
+- [`dataset.txt`](https://github.com/buiduchanh/TF_yolov3/tree/master/data/dataset/voc_train.txt): 
 
 ```
 xxx/xxx.jpg 18.19,6.32,424.13,421.83,20 323.86,2.65,640.0,421.94,20 
@@ -45,7 +21,7 @@ xxx/xxx.jpg 48,240,195,371,11 8,12,352,498,14
 # make sure that x_max < width and y_max < height
 ```
 
-- [`class.names`](https://github.com/YunYang1994/tensorflow-yolov3/blob/master/data/classes/coco.names):
+- [`class.names`](https://github.com/buiduchanh/TF_yolov3/tree/master/data/classes/coco.names):
 
 ```
 person
@@ -55,27 +31,11 @@ car
 toothbrush
 ```
 
-### 2.1 Train on VOC dataset
-Download VOC PASCAL trainval  and test data
-```bashrc
-$ wget http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtrainval_06-Nov-2007.tar
-$ wget http://host.robots.ox.ac.uk/pascal/VOC/voc2012/VOCtrainval_11-May-2012.tar
-$ wget http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtest_06-Nov-2007.tar
-```
-Extract all of these tars into one directory and rename them, which should have the following basic structure.
+### 2. Caculate Anchor
 
-```bashrc
+We provided file *kmeans.py* for caculate the anchor like [`coco_anchor.txt`](https://github.com/buiduchanh/TF_yolov3/blob/master/data/anchors/coco_anchors.txt)
 
-VOC           # path:  /home/yang/dataset/VOC
-├── test
-|    └──VOCdevkit
-|        └──VOC2007 (from VOCtest_06-Nov-2007.tar)
-└── train
-     └──VOCdevkit
-         └──VOC2007 (from VOCtrainval_06-Nov-2007.tar)
-         └──VOC2012 (from VOCtrainval_11-May-2012.tar)
-                     
-$ python scripts/voc_annotation.py --data_path /home/yang/test/VOC
+### 3. Change config
 ```
 Then edit your `./core/config.py` to make some necessary configurations
 
@@ -83,46 +43,24 @@ Then edit your `./core/config.py` to make some necessary configurations
 __C.YOLO.CLASSES                = "./data/classes/voc.names"
 __C.TRAIN.ANNOT_PATH            = "./data/dataset/voc_train.txt"
 __C.TEST.ANNOT_PATH             = "./data/dataset/voc_test.txt"
+
+If you want to use MobileNetV2 as backbone instead of Darknet53 just set the parameters in config same as below
+__C.YOLO.BACKBONE_MOBILE        = True
+__C.YOLO.GT_PER_GRID            = 3
 ```
 Here are two kinds of training method: 
 
-##### (1) train from scratch:
+### 4. Training
 
 ```bashrc
 $ python train.py
 $ tensorboard --logdir ./data
 ```
-##### (2) train from COCO weights(recommend):
+## Result
 
-```bashrc
-$ cd checkpoint
-$ wget https://github.com/YunYang1994/tensorflow-yolov3/releases/download/v1.0/yolov3_coco.tar.gz
-$ tar -xvf yolov3_coco.tar.gz
-$ cd ..
-$ python convert_weight.py --train_from_coco
-$ python train.py
-```
-### 2.2 Evaluate on VOC dataset
+We will update this result asap
 
-```
-$ python evaluate.py
-$ cd mAP
-$ python main.py -na
-```
-
-the mAP on the VOC2012 dataset:
-
-<p align="center">
-    <img width="50%" src="https://user-images.githubusercontent.com/33013904/58227054-dd4fc800-7d5b-11e9-85aa-67854292fbe0.png" style="max-width:50%;">
-    </a>
-</p>
-
-
-## part 3. Stargazers over time
-
-[![Stargazers over time](https://starcharts.herokuapp.com/YunYang1994/tensorflow-yolov3.svg)](https://starcharts.herokuapp.com/YunYang1994/tensorflow-yolov3)
-
-## part 4. Other Implementations
+## Other Implementations
 
 [-**`YOLOv3目标检测有了TensorFlow实现，可用自己的数据来训练`**](https://mp.weixin.qq.com/s/cq7g1-4oFTftLbmKcpi_aQ)<br>
 
