@@ -340,8 +340,10 @@ class YOLOV3(object):
         batch_size  = conv_shape[0]
         output_size = conv_shape[1]
         input_size  = stride * output_size
+        
         conv = tf.reshape(conv, (batch_size, output_size, output_size,
-                                 self.anchor_per_scale, 5 + self.num_class))
+                            self.gt_per_grid, 5 + self.num_class))
+
         conv_raw_conf = conv[:, :, :, :, 4:5]
         conv_raw_prob = conv[:, :, :, :, 5:]
 
@@ -383,18 +385,23 @@ class YOLOV3(object):
 
     def compute_loss(self, label_sbbox, label_mbbox, label_lbbox, true_sbbox, true_mbbox, true_lbbox):
 
+        
         with tf.name_scope('smaller_box_loss'):
+            # 
             loss_sbbox = self.loss_layer(self.conv_sbbox, self.pred_sbbox, label_sbbox, true_sbbox,
-                                         anchors = self.anchors[0], stride = self.strides[0])
+                                        anchors = self.anchors[0], stride = self.strides[0])
 
         with tf.name_scope('medium_box_loss'):
+            
             loss_mbbox = self.loss_layer(self.conv_mbbox, self.pred_mbbox, label_mbbox, true_mbbox,
-                                         anchors = self.anchors[1], stride = self.strides[1])
+                                        anchors = self.anchors[1], stride = self.strides[1])
 
         with tf.name_scope('bigger_box_loss'):
+            
             loss_lbbox = self.loss_layer(self.conv_lbbox, self.pred_lbbox, label_lbbox, true_lbbox,
-                                         anchors = self.anchors[2], stride = self.strides[2])
+                                        anchors = self.anchors[2], stride = self.strides[2])
 
+        
         with tf.name_scope('giou_loss'):
             giou_loss = loss_sbbox[0] + loss_mbbox[0] + loss_lbbox[0]
 
@@ -426,12 +433,14 @@ class YOLOV3(object):
         # label_prob = label[..., 5:-1]
         # label_mixw = label[..., -1:]
 
-        # 计算GIOU损失
+        # 计算GIOU损失  
         GIOU = self.bbox_giou(pred_coor, label_coor)
         GIOU = GIOU[..., np.newaxis]
         input_size = tf.cast(input_size, tf.float32)
-        bbox_wh = label_coor[..., 2:] - label_coor[..., :2]
-        bbox_loss_scale = 2.0 - 1.0 * bbox_wh[..., 0:1] * bbox_wh[..., 1:2] / (input_size ** 2)
+        # bbox_wh = label_coor[..., 2:] - label_coor[..., :2]
+        # bbox_loss_scale = 2.0 - 1.0 * bbox_wh[..., 0:1] * bbox_wh[..., 1:2] / (input_size ** 2)
+        bbox_loss_scale = 2.0 - 1.0 * label_coor[:, :, :, :, 2:3] * label_coor[:, :, :, :, 3:4] / (input_size ** 2)
+
         giou_loss = respond_bbox * bbox_loss_scale * (1.0 - GIOU)
 
         # (2)计算confidence损失

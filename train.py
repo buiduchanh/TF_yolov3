@@ -45,7 +45,6 @@ class YoloTrain(object):
         self.testset             = Dataset('test')
         self.steps_per_period    = len(self.trainset)
         self.sess                = tf.Session(config=tf.ConfigProto(allow_soft_placement=True))
-        self.mobile              = cfg.YOLO.BACKBONE_MOBILE
         
         with tf.name_scope('define_input'):
             self.input_data   = tf.placeholder(dtype=tf.float32, name='input_data')
@@ -60,14 +59,13 @@ class YoloTrain(object):
         with tf.name_scope("define_loss"):
             self.model = YOLOV3(self.input_data, self.trainable)
             self.net_var = tf.global_variables()
-            if self.mobile:
-                self.giou_loss, self.conf_loss, self.prob_loss = self.model.compute_loss(
+            self.giou_loss, self.conf_loss, self.prob_loss = self.model.compute_loss(
                                                         self.label_sbbox,  self.label_mbbox,  self.label_lbbox,
                                                         self.true_sbboxes, self.true_mbboxes, self.true_lbboxes)
-            else:
-                self.giou_loss, self.conf_loss, self.prob_loss = self.model.compute_loss_mobile(
-                                                        self.label_sbbox,  self.label_mbbox,  self.label_lbbox,
-                                                        self.true_sbboxes, self.true_mbboxes, self.true_lbboxes)
+            # else:
+            #     self.giou_loss, self.conf_loss, self.prob_loss = self.model.compute_loss_mobile(
+            #                                             self.label_sbbox,  self.label_mbbox,  self.label_lbbox,
+            #                                             self.true_sbboxes, self.true_mbboxes, self.true_lbboxes)
             self.loss = self.giou_loss + self.conf_loss + self.prob_loss
 
         with tf.name_scope('learn_rate'):
@@ -115,7 +113,7 @@ class YoloTrain(object):
 
         with tf.name_scope('loader_and_saver'):
             self.loader = tf.train.Saver(self.net_var)
-            self.saver  = tf.train.Saver(tf.global_variables(), max_to_keep=10)
+            self.saver  = tf.train.Saver(tf.global_variables())
 
         with tf.name_scope('summary'):
             tf.summary.scalar("learn_rate",      self.learn_rate)
