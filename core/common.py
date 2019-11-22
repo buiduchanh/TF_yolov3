@@ -32,10 +32,11 @@ def convolutional(input_data, filters_shape, trainable, name, downsample=False, 
         conv = tf.nn.conv2d(input=input_data, filter=weight, strides=strides, padding=padding)
 
         if bn:
-            conv = tf.layers.batch_normalization(conv, beta_initializer=tf.zeros_initializer(),
-                                                 gamma_initializer=tf.ones_initializer(),
-                                                 moving_mean_initializer=tf.zeros_initializer(),
-                                                 moving_variance_initializer=tf.ones_initializer(), training=trainable)
+            # conv = tf.layers.batch_normalization(conv, beta_initializer=tf.zeros_initializer(),
+            #                                      gamma_initializer=tf.ones_initializer(),
+            #                                      moving_mean_initializer=tf.zeros_initializer(),
+            #                                      moving_variance_initializer=tf.ones_initializer(), training=trainable)
+            conv = group_normalization(input_data=conv, input_channel=filters_shape[-1])
         else:
             bias = tf.get_variable(name='bias', shape=filters_shape[-1], trainable=True,
                                    dtype=tf.float32, initializer=tf.constant_initializer(0.0))
@@ -44,6 +45,32 @@ def convolutional(input_data, filters_shape, trainable, name, downsample=False, 
         if activate == True: conv = tf.nn.leaky_relu(conv, alpha=0.1)
 
     return conv
+
+def group_normalization(input_data, input_channel, num_group=32, eps=1e-5):
+    """
+    :param input_data: format is 'NHWC'，C必须是num_group的整数倍
+    :param input_channel: input_data的input_chanenl
+    :return: GN后的数据
+    """
+    with tf.variable_scope('group_normalization'):
+        input_shape = tf.shape(input_data)
+        N = input_shape[0]
+        H = input_shape[1]
+        W = input_shape[2]
+        C = input_channel
+        assert (C % num_group) == 0
+        input_data = tf.reshape(input_data, (N, H, W, num_group, C // num_group))
+        axes = (1, 2, 4)
+        mean = tf.reduce_mean(input_data, axis=axes, keep_dims=True)
+        std = tf.sqrt(tf.reduce_mean(tf.pow(input_data - mean, 2), axis=axes, keep_dims=True) + eps)
+        input_data = 1.0 * (input_data - mean) / std
+        input_data = tf.reshape(input_data, (N, H, W, C))
+        scale = tf.get_variable(name='scale', shape=C, dtype=tf.float32,
+                                initializer=tf.ones_initializer, trainable=True)
+        shift = tf.get_variable(name='shift', shape=C, dtype=tf.float32,
+                                initializer=tf.zeros_initializer, trainable=True)
+    return scale * input_data + shift
+
 
 def inverted_residual(name, input_data, input_c, output_c, trainable, downsample=False, t=6):
     """

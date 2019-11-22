@@ -69,7 +69,7 @@ We will update this result asap
 - [x] MobileV2
 - [x] DarkNet  
 - [x] Using Focal loss
-
+- [x] Added Batch Normalize
 ## TODO
 
 - Convert model to using in edge device
