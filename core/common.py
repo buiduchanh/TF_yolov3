@@ -47,11 +47,7 @@ def convolutional(input_data, filters_shape, trainable, name, downsample=False, 
     return conv
 
 def group_normalization(input_data, input_channel, num_group=32, eps=1e-5):
-    """
-    :param input_data: format is 'NHWC'，C必须是num_group的整数倍
-    :param input_channel: input_data的input_chanenl
-    :return: GN后的数据
-    """
+
     with tf.variable_scope('group_normalization'):
         input_shape = tf.shape(input_data)
         N = input_shape[0]
@@ -73,16 +69,7 @@ def group_normalization(input_data, input_channel, num_group=32, eps=1e-5):
 
 
 def inverted_residual(name, input_data, input_c, output_c, trainable, downsample=False, t=6):
-    """
-    :param name:
-    :param input_data: shape 为NHWC
-    :param input_c: channel of input data
-    :param output_c: channel of output data
-    :param training: 是否在训练，必须为tensor
-    :param downsample: 是否下采样
-    :param t: expansion factor
-    :return: 输出数据的shape为(N, H, W, output_channel)
-    """
+
     with tf.variable_scope(name):
         expand_c = t * input_c
 
@@ -125,15 +112,7 @@ def inverted_residual(name, input_data, input_c, output_c, trainable, downsample
             return input_data + pwise_conv
             
 def separable_conv(name, input_data, input_c, output_c, trainable, downsample=False):
-    """
-    :param name:
-    :param input_data: shape 为NHWC
-    :param input_c: channel of input data
-    :param output_c: channel of output data
-    :param training: 是否在训练，必须为tensor
-    :param downsample: 是否下采样
-    :return: 输出数据的shape为(N, H, W, output_channel)
-    """
+
     with tf.variable_scope(name):
         with tf.variable_scope('depthwise'):
             if downsample:
@@ -161,13 +140,7 @@ def separable_conv(name, input_data, input_c, output_c, trainable, downsample=Fa
         return pwise_conv
 
 def batch_normalization(input_data, input_c, trainable, decay=0.9):
-    """
-    :param input_data: format is 'NHWC'
-    :param input_c: channel of input_data
-    :param training: 是否在训练，即bn会根据该参数选择mean and variance
-    :param decay: 均值方差滑动参数
-    :return: BN后的数据
-    """
+
     with tf.variable_scope('BatchNorm'):
         gamma = tf.get_variable(name='gamma', shape=input_c, dtype=tf.float32,
                                 initializer=tf.ones_initializer, trainable=True)

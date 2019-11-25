@@ -74,6 +74,8 @@ We will update this result asap
 
 - Convert model to using in edge device
 - Adding channel prunning
+- Using [Diou loss](https://github.com/Zzh-tju/DIoU-pytorch-detectron) instead of Giou loss ( increase mAP ~5%)
+- Adaptively spatial feature fusion [ASFF](https://github.com/ruinmessi/ASFF) which increase the mAP ~ 10% 
 
 ## Reference
 

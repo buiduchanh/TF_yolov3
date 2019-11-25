@@ -17,7 +17,6 @@ import core.utils as utils
 import core.common as common
 import core.backbone as backbone
 from core.config import cfg
-# from core.MobilenetV2 import MobilenetV2
 
 class YOLOV3(object):
     """Implement tensoflow yolov3 here"""
@@ -67,18 +66,7 @@ class YOLOV3(object):
                 self.pred_lbbox = self.decode(self.conv_lbbox, self.anchors[2], self.strides[2])
 
     def __build_nework_mobile(self, input_data):
-        """
-        :param input_data: shape为(batch_size, input_size, input_size, 3)
-        :return: conv_sbbox, conv_mbbox, conv_lbbox, pred_sbbox, pred_mbbox, pred_lbbox
-        conv_sbbox的shape为(batch_size, input_size / 8, input_size / 8, gt_per_grid * (5 + num_classes))
-        conv_mbbox的shape为(batch_size, input_size / 16, input_size / 16, gt_per_grid * (5 + num_classes))
-        conv_lbbox的shape为(batch_size, input_size / 32, input_size / 32, gt_per_grid * (5 + num_classes))
-        conv_?是YOLO的原始卷积输出(raw_dx, raw_dy, raw_dw, raw_dh, raw_conf, raw_prob)
-        pred_sbbox的shape为(batch_size, input_size / 8, input_size / 8, gt_per_grid, 5 + num_classes)
-        pred_mbbox的shape为(batch_size, input_size / 16, input_size / 16, gt_per_grid, 5 + num_classes)
-        pred_lbbox的shape为(batch_size, input_size / 32, input_size / 32, gt_per_grid, 5 + num_classes)
-        pred_?是YOLO预测bbox的信息(x, y, w, h, conf, prob)，(x, y, w, h)的大小是相对于input_size的
-        """
+        
         feature_map_s, feature_map_m, feature_map_l = backbone.MobilenetV2(input_data, self.trainable)
 
         conv = common.convolutional(name='conv0', input_data=feature_map_l, filters_shape=(1, 1, 1280, 512),
@@ -96,8 +84,6 @@ class YOLOV3(object):
         conv_lbbox = common.convolutional(name='conv_lbbox', input_data=conv_lbbox,
                                     filters_shape=(1, 1, 1024, self.gt_per_grid * (self.num_class + 5)),
                                     trainable=self.trainable, downsample=False, activate=False, bn=False)
-        # pred_lbbox = decode(name='pred_lbbox', conv_output=conv_lbbox,
-        #                     num_classes=self.num_class, stride=self.__strides[2])
         # ----------**********---------- Detection branch of large object ----------**********----------
 
         # ----------**********---------- up sample and merge features map ----------**********----------
@@ -120,8 +106,6 @@ class YOLOV3(object):
         conv_mbbox = common.convolutional(name='conv_mbbox', input_data=conv_mbbox,
                                     filters_shape=(1, 1, 512, self.gt_per_grid * (self.num_class + 5)),
                                     trainable=self.trainable, downsample=False, activate=False, bn=False)
-        # pred_mbbox = decode(name='pred_mbbox', conv_output=conv_mbbox,
-        #                     num_classes=self.num_class, stride=self.__strides[1])
         # ----------**********---------- Detection branch of middle object ----------**********----------
 
         # ----------**********---------- up sample and merge features map ----------**********----------
@@ -146,8 +130,6 @@ class YOLOV3(object):
         conv_sbbox = common.convolutional(name='conv_sbbox', input_data=conv_sbbox,
                                     filters_shape=(1, 1, 256, self.gt_per_grid * (self.num_class + 5)),
                                     trainable=self.trainable, downsample=False, activate=False, bn=False)
-        # pred_sbbox = decode(name='pred_sbbox', conv_output=conv_sbbox,
-        #                     num_classes=self.num_class, stride=self.__strides[0])
         # ----------**********---------- Detection branch of small object ----------**********----------
 
         return conv_lbbox, conv_mbbox, conv_sbbox
@@ -212,34 +194,18 @@ class YOLOV3(object):
         conv_raw_conf = conv_output[:, :, :, :, 4:5]
         conv_raw_prob = conv_output[:, :, :, :, 5:]
 
-        # 获取yolo的输出feature map中每个grid左上角的坐标
-        # 需注意的是图像的坐标轴方向为
-        #  - - - - > x
-        # |
-        # |
-        # ↓
-        # y
-        # 在图像中标注坐标时通常用(y,x)，但此处为了与coor的存储格式(dx, dy, dw, dh)保持一致，将grid的坐标存储为(x, y)的形式
-
         y = tf.tile(tf.range(output_size, dtype=tf.int32)[:, tf.newaxis], [1, output_size])
         x = tf.tile(tf.range(output_size, dtype=tf.int32)[tf.newaxis, :], [output_size, 1])
         xy_grid = tf.concat([x[:, :, tf.newaxis], y[:, :, tf.newaxis]], axis=-1)
         xy_grid = tf.tile(xy_grid[tf.newaxis, :, :, tf.newaxis, :], [batch_size, 1, 1, gt_per_grid, 1])
         xy_grid = tf.cast(xy_grid, tf.float32)
 
-        # (1)对xmin, ymin, xmax, ymax进行decode
-        # dx_min, dy_min = exp(rawdx1dy1)
-        # dx_max, dy_max = exp(rawdx2dy2)
-        # xmin, ymin = ((x_grid, y_grid) + 0.5 - (dx_min, dy_min)) * stride
-        # xmax, ymax = ((x_grid, y_grid) + 0.5 + (dx_max, dy_max)) * stride
         pred_xymin = (xy_grid + 0.5 - tf.exp(conv_raw_dx1dy1)) * stride
         pred_xymax = (xy_grid + 0.5 + tf.exp(conv_raw_dx2dy2)) * stride
         pred_corner = tf.concat([pred_xymin, pred_xymax], axis=-1)
 
-        # (2)对confidence进行decode
         pred_conf = tf.sigmoid(conv_raw_conf)
 
-        # (3)对probability进行decode
         pred_prob = tf.sigmoid(conv_raw_prob)
 
         pred_bbox = tf.concat([pred_corner, pred_conf, pred_prob], axis=-1)
@@ -433,7 +399,7 @@ class YOLOV3(object):
         # label_prob = label[..., 5:-1]
         # label_mixw = label[..., -1:]
 
-        # 计算GIOU损失  
+        # GIOU
         GIOU = self.bbox_giou(pred_coor, label_coor)
         GIOU = GIOU[..., np.newaxis]
         input_size = tf.cast(input_size, tf.float32)
@@ -443,7 +409,7 @@ class YOLOV3(object):
 
         giou_loss = respond_bbox * bbox_loss_scale * (1.0 - GIOU)
 
-        # (2)计算confidence损失
+        # confidence
         iou = self.bbox_iou(pred_coor[:, :, :, :, np.newaxis, :],
                             bboxes[:, np.newaxis, np.newaxis, np.newaxis, :, : ])
         max_iou = tf.reduce_max(iou, axis=-1)
@@ -458,11 +424,9 @@ class YOLOV3(object):
                 respond_bgd * tf.nn.sigmoid_cross_entropy_with_logits(labels=respond_bbox, logits=conv_raw_conf)
         )
 
-        # (3)计算classes损失
+        # classes
         prob_loss = respond_bbox * tf.nn.sigmoid_cross_entropy_with_logits(labels=label_prob, logits=conv_raw_prob)
-        # loss = tf.concat([GIOU_loss, conf_loss, prob_loss], axis=-1)
-        # loss = loss * label_mixw
-        # loss = tf.reduce_mean(tf.reduce_sum(loss, axis=[1, 2, 3, 4]))
+        
         giou_loss = tf.reduce_mean(tf.reduce_sum(giou_loss, axis=[1,2,3,4]))
         conf_loss = tf.reduce_mean(tf.reduce_sum(conf_loss, axis=[1,2,3,4]))
         prob_loss = tf.reduce_mean(tf.reduce_sum(prob_loss, axis=[1,2,3,4]))
